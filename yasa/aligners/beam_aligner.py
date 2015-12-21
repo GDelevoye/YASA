@@ -43,10 +43,28 @@ class Alignment(object):
         return filter(is_error, self.__nodes)
 
     def error_counts(self):
-        strings = map(lambda e: e.pretty_print(self.source_seq, self.target_seq), self.errors())
-        strings.sort()
-        error_counts = map(lambda (k, g): (k, len(list(g))), itertools.groupby(strings))
+        """
+        TODO return (AlignmentNode, int) instead of (str, int)
+        :return:
+        """
+
+        def node_key(node):
+            """
+            Get the key for a node
+            :param node:
+            :type node: AlignmentNode
+            :return:
+            """
+            return '{} {} {}'.format(node.source_token(self.source_seq),
+                                     node.align_type,
+                                     node.target_token(self.target_seq))
+
+        sortable_errors = map(lambda n: KeyedAlignmentNode(n, node_key(n)), self.errors())
+        sortable_errors.sort()
+
+        error_counts = map(lambda (k, g): (k.node, len(list(g))), itertools.groupby(sortable_errors))
         error_counts.sort(key=lambda (e, c): -c)
+
         return error_counts
 
     def errors_n(self):
@@ -151,14 +169,29 @@ class AlignmentNode(object):
             return empty
         return target_seq[self.targetPos]
 
+    @staticmethod
+    def __normalize_for_logging(token):
+        """
+        Normalize a token for log output
+        :param token:
+        :type token: str
+        :return:
+        :rtype: str
+        """
+        return token.replace('\n', '\\n')
+
     def pretty_print(self, source_seq, target_seq):
-        return ("{:<30}{:^10}{:>30}"
-                .format(self.source_token(source_seq), self.align_type, self.target_token(target_seq)))
+        return ("{:<30}{:^10}{:>30}{:>5}"
+                .format(AlignmentNode.__normalize_for_logging(self.source_token(source_seq)),
+                        self.align_type,
+                        AlignmentNode.__normalize_for_logging(self.target_token(target_seq)),
+                        self.cost)
+                )
 
     def __eq__(self, other):
         return (
-            self.previous == other.previous and
-            self.cost == other.cost and
+            # self.previous == other.previous and
+            # self.cost == other.cost and
             self.sourcePos == other.sourcePos and
             self.targetPos == other.targetPos
         )
@@ -166,6 +199,37 @@ class AlignmentNode(object):
     def __str__(self):
         return "{type: %s, source_pos: %d, target_pos: %d, cost: %d}" % (
             self.align_type, self.sourcePos, self.targetPos, self.cost)
+
+
+class KeyedAlignmentNode(AlignmentNode):
+    def __init__(self, node, key):
+        """
+
+        :param node:
+        :return:
+        :rtype : KeyedAlignmentNode
+        """
+        self.node = node
+        self.key = key
+
+    def __cmp__(self, other):
+        """
+        Compare
+
+        :param other:
+        :type other: KeyedAlignmentNode
+        :return:
+        """
+        return cmp(self.key, other.key)
+
+    def __eq__(self, other):
+        """
+        Equals
+        :param other:
+        :type other: KeyedAlignmentNode
+        :return:
+        """
+        return self.key == other.key
 
 
 class Aligner(object):

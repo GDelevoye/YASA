@@ -190,13 +190,22 @@ def get_errors_test():
 def get_error_counts_test():
     __announce_test("Get error counts test")
 
-    source = __get_words("a b b a")
-    target = __get_words("a x x i s")
+    source = [c for c in "a b\nb a"]
+    target = [c for c in "a x x i s"]
 
     alignment = beam_aligner.align(source, target)
-    print alignment
-    for (error, count) in alignment.error_counts():
-        print '{}\t{}'.format(error, count)
+    print alignment.pretty_print()
+    error_counts = alignment.error_counts()
+    for (error, count) in error_counts:
+        print '{:<5}{:<30}{:^10}{:>30}'.format(count,
+                                               error.source_token(alignment.source_seq),
+                                               error.align_type,
+                                               error.target_token(alignment.target_seq))
+
+    assert type(error_counts[0][0]) == beam_aligner.AlignmentNode, "got the wrong type {}".format(
+        type(error_counts[0][0]))
+
+    as_dict = dict(error_counts)
 
 
 def test_all():
